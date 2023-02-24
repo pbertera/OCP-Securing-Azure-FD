@@ -173,15 +173,19 @@ In order to be able to customize the router configuration of a shard, the router
 For that reason we have to deploy an "unmanaged" router. This repo contains an Helm chart with all the needed resources.
 The Helm templates are created out of shard from a 4.9.11 OCP cluster, deploying this Helm chart on a different version requires a double-check of the resources.
 
-1. Clone this repo
+1. Clone this repo `git clone https://github.com/pbertera/OCP-Securing-Azure-FD.git && cd OCP-Securing-Azure-FD`
 2. Configure the `helm/values.yaml`:
     - `ingressFQDN` is the wildcard application FQDN for the shard
     - `tlsCert` and `tlsKey` are the certificate and the key used by the router (must match the `ingressFQDN`)
     - `routeLabels` defines the route selector that this shard will use
-3. Install the chart: `helm install sharded ./helm/`
+    - `image` is the router image, you can get it from the default router: `oc get deploy -n openshift-ingress router-default -o jsonpath="{.spec.template.spec.containers[0].image}"`
+3. Install the chart: `helm install -n openshift-ingress sharded ./helm/`
+4. Verify the pods are running: `oc get pods,svc,deploy -n openshift-ingress`
+
+The helm chard deploys a `LoadBalancer` service to expose the router. We need to create a DNS A record for the wildcard application FQDN of the shard pointg to the the external IP of the load balancer.
 
 The chart will deploy a router into the `openshift-ingress` namespace which is not handled by the Ingress Operator.
-Is then possible to customize the router following the steps of the **Router customization in order to secure requests coming from an Azure Front Door** Section
+Is then possible to customize the router following the steps of the [Router customization in order to secure requests coming from an Azure Front Door](securing) Section
 
 ## Default router customization
 
@@ -218,7 +222,7 @@ oc patch clusterversion version --type json -p "$(cat version-patch.yaml)"
 oc scale deploy -n openshift-ingress-operator ingress-operator --replicas 0
 ```
 
-### Router customization in order to secure requests coming from an Azure Front Door
+### [Router customization in order to secure requests coming from an Azure Front Door](#securing)
 
 1. Get the pod name:
 

@@ -1,4 +1,3 @@
-shardName: sharded
 statsUsername: stats
 statsPassword: statsPwd
 tlsCert: "tls.crt"

@@ -3,7 +3,6 @@ kind: Deployment
 metadata:
   labels:
     ingresscontroller.operator.openshift.io/owning-ingresscontroller: {{ include "router-shard.fullname" . }}
-    {{ include "router-shard.fullname" . }}
   name: router-{{ include "router-shard.fullname" . }}
   namespace: openshift-ingress
 spec:
