@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: router-certs-{{ include "router-shard.fullname" . }}
+  namespace: openshift-ingress
+data:
+  tls.crt: |-
+    {{ .Files.Get .Values.tlsCert | b64enc }}
+  tls.key: |-
+    {{ .Files.Get .Values.tlsKey | b64enc }}

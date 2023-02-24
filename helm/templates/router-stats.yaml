@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: router-stats-{{ include "router-shard.fullname" . }}
+  namespace: openshift-ingress
+data:
+  statsPassword: {{ .Values.statsPassword | b64enc }}
+  statsUsername: {{ .Values.statsUsername | b64enc }}
+

@@ -1,0 +1,11 @@
+shardName: sharded
+statsUsername: stats
+statsPassword: statsPwd
+tlsCert: "tls.crt"
+tlsKey: "tls.key"
+ingressFQDN: "secured-apps.ocp4-f87sm-ipi.azure.opentlc.com"
+image: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:73d1c5f9417f9a851404baed48d4dd3051ff23e6568033fec1fa6b9c7af3d889
+nodeSelector:
+  node-role.kubernetes.io/worker: ""
+  router-sharded: "yes"
+routeLabels: type=sharded
