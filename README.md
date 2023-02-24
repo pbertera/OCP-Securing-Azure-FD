@@ -185,7 +185,7 @@ The Helm templates are created out of shard from a 4.9.11 OCP cluster, deploying
 The helm chard deploys a `LoadBalancer` service to expose the router. We need to create a DNS A record for the wildcard application FQDN of the shard pointg to the the external IP of the load balancer.
 
 The chart will deploy a router into the `openshift-ingress` namespace which is not handled by the Ingress Operator.
-Is then possible to customize the router following the steps of the [Router customization in order to secure requests coming from an Azure Front Door](securing) Section
+Is then possible to customize the router following the steps of the [Router customization in order to secure requests coming from an Azure Front Door](#securing) Section
 
 ## Default router customization
 
@@ -222,7 +222,7 @@ oc patch clusterversion version --type json -p "$(cat version-patch.yaml)"
 oc scale deploy -n openshift-ingress-operator ingress-operator --replicas 0
 ```
 
-### [Router customization in order to secure requests coming from an Azure Front Door](#securing)
+### [Router customization in order to secure requests coming from an Azure Front Door][securing]
 
 1. Get the pod name:
 
