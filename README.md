@@ -1,8 +1,3 @@
-TODO: 
-[ ] Check shard on same nodes
-[ ] Test list
-[ ] Pro/Cons : finish
-
 ## How to secure OpenShift routes exposed through an Azure Front-Door
 
 When you are using an Azure Front Door with public IP address-based origins, you should ensure that traffic flows through your Front Door instance.
@@ -100,6 +95,8 @@ curl -H 'X-Azure-FDID: 1234' http://${ROUTE_HOSTNAME}
 
 ### Segregate the default router
 
+**ACTION GOAL:** run the default router pods on a predefinite set of worker nodes. Is not needed if you are willing to execute the default router and the shard on the same set of nodes
+
 In the following steps we will segregate the default router to be hosted only on nodes with the `router-sharded: yes`.
 
 Add the `nodePlacement` to the default IngressController:
@@ -119,6 +116,8 @@ spec:
 
 ### Excluding the sharded routes from the default router
 
+**ACTION GOAL:** exclude from the default router all the routes with a specific label
+
 We also need to skip the routes with `type: sharded` label from the default router.
 
 Skip the routes with `type: sharded` from the default router, in this way the default router will ignore them:
@@ -133,13 +132,15 @@ oc patch \
 
 ### Create a shard from the Ingress Operator
 
+**ACTION GOAL:** let the Ingress Operator to create a shard (a new `Deployment` of a router). This can be useful to have all the resources in order to manually create a shard.
+
 This section documents how to create a shard using the Ingress Operator, deployng an additional router on the cluster.
 
 **NOTE:** the deployed router cannot be customized because is managed by the Ingress operator, every change will be reconciliated.
 This is useful just to have all the needed resources to use as a skeleton for the manual deployment.
 
-Since we already segregated the default router instance on worker nodes with label `router-sharded: no` we can deploy another router instance (shard) on the workers with label `router-sharded: yes`.
-The shard will take care *only* of the routes with label `type: sharded`:
+If we need to segregate the routers (default and the shard) on different sets of nodes, is possible to define a `nodePlacement` section.
+With the `routeSelector` field, the shard will take care *only* of the routes with label `type: sharded`:
 
 ```
 $ export DOMAIN_NAME=shard.ocp.example.com
@@ -164,10 +165,13 @@ status: {}
 EOF
 ```
 
-- Optional: Backup the data: `oc adm inspect ns/openshift-ingress --dest-dir=./openshift-ingress.backup`
-- Optional: Remove the managed shard: `oc delete IngressController -n openshift-ingress-operator sharded`
+You can now backup all the objects created by the Ingress Operator: `oc adm inspect ns/openshift-ingress --dest-dir=./openshift-ingress.backup`
+
+Before creating a manual shard you will need to remove the managed shard: `oc delete IngressController -n openshift-ingress-operator sharded`
 
 ### How to manually create a shard
+
+**ACTION GOAL:** install a `Deployment` and all the needed resources to execute an Ingress Router. This router is not managed by the Ingress Controller, thus can be customized.
 
 In order to be able to customize the router configuration of a shard, the router must not be managed by the Ingress Controller, otherwise every change will be reconciliated by the operator.
 For that reason we have to deploy an "unmanaged" router. This repo contains an Helm chart with all the needed resources.
@@ -182,7 +186,8 @@ The Helm templates are created out of shard from a 4.9.11 OCP cluster, deploying
 3. Install the chart: `helm install -n openshift-ingress sharded ./helm/`
 4. Verify the pods are running: `oc get pods,svc,deploy -n openshift-ingress`
 
-The helm chard deploys a `LoadBalancer` service to expose the router. We need to create a DNS A record for the wildcard application FQDN of the shard pointg to the the external IP of the load balancer.
+The helm chart deploys a `LoadBalancer` service to expose the router.
+We need to create a DNS A record for the wildcard application FQDN of the shard pointg to the the external IP of the load balancer (see the next sections for that).
 
 The chart will deploy a router into the `openshift-ingress` namespace which is not handled by the Ingress Operator.
 Is then possible to customize the router following the steps of the [Router customization in order to secure requests coming from an Azure Front Door](#router-customization-in-order-to-secure-requests-coming-from-an-azure-front-door) Section
@@ -192,6 +197,8 @@ Is then possible to customize the router following the steps of the [Router cust
 As already highlited in order to customize the default router instance the router deplyment must not be managed by the Ingress Operator, thus as a first step we have to make the router unmanaged.
 
 ### Making the default router unmanaged
+
+**ACTION GOAL:** Instruct the Cluster Version operator to don't reconcile the Ingress Operator deployment, so we can scale to zero (disable) the Ingress Operator.
 
 If you want to customize the default ingress router you have to make it unmanaged, thus all the changes will be not reconciliated by the Ingress Operator.
 
@@ -223,6 +230,8 @@ oc scale deploy -n openshift-ingress-operator ingress-operator --replicas 0
 ```
 
 ### Router customization in order to secure requests coming from an Azure Front Door
+
+**ACTION GOAL:** apply the HAProxy template customizations in order to secure Fron Door requests as per Microsoft instructions.
 
 1. Get the pod name:
 
@@ -272,4 +281,123 @@ oc -n openshift-ingress set volume deploy/${ROUTER_NAME} --add --overwrite --nam
 
 ```
 oc -n openshift-ingress set env deploy/${ROUTER_NAME} TEMPLATE_FILE=/var/lib/haproxy/conf/custom/haproxy-config.template
+```
+
+## DNS Management
+
+If you replace the default ingress router and the LoadBalancer service exposing the router is not deleted/re-created a DNS record resolving the widcard domain should be already availabe.
+
+In case you are deploying the custom router as a shard you will need to create the DNS record for the shard wildcard domain.
+When the LoadBalancer service exposing the router is deleted and re-created the DNS record must be updated with the proper public load balancer IP address.
+
+A solution to automate the management of the wildcard DNS record is to use the [External DNS operator](https://docs.openshift.com/container-platform/4.10/networking/external_dns_operator/understanding-external-dns-operator.html).
+
+**NOTE:** Azure DNS zone management with External DNS Operator is Technology Preview on OpenShift 4.10, and Generally Available in 4.11.
+
+1. Create the External DNS namespace:
+
+```
+$ oc create ns external-dns
+```
+
+2. Apply the needed RBAC:
+
+```
+$ oc apply -f https://raw.githubusercontent.com/openshift/external-dns-operator/release-0.1/config/rbac/extra-roles.yaml
+```
+
+3. Install the ExternalDNS operator:
+
+```
+$ oc create ns external-dns-operator
+
+$ cat << EOF | oc apply -f -
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: external-dns-operator
+  namespace: external-dns-operator
+spec:
+  targetNamespaces:
+  - external-dns-operator
+EOF
+
+$ cat << EOF | oc apply -f -
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: external-dns-operator
+  namespace: external-dns-operator
+spec:
+  channel: alpha
+  installPlanApproval: Automatic
+  name: external-dns-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+EOF
+```
+
+4. Fetch the values from azure-credentials secret present in kube-system namespace.
+
+```
+$ CLIENT_ID=$(oc get secrets azure-credentials  -n kube-system  --template={{.data.azure_client_id}} | base64 -d)
+$ CLIENT_SECRET=$(oc get secrets azure-credentials  -n kube-system  --template={{.data.azure_client_secret}} | base64 -d)
+$ RESOURCE_GROUP=$(oc get secrets azure-credentials  -n kube-system  --template={{.data.azure_resourcegroup}} | base64 -d)
+$ SUBSCRIPTION_ID=$(oc get secrets azure-credentials  -n kube-system  --template={{.data.azure_subscription_id}} | base64 -d)
+$ TENANT_ID=$(oc get secrets azure-credentials  -n kube-system  --template={{.data.azure_tenant_id}} | base64 -d)
+```
+
+5. Login with the `az` CLI
+
+```
+$ az login --service-principal -u "${CLIENT_ID}" -p "${CLIENT_SECRET}" --tenant "${TENANT_ID}"
+```
+
+6. Get the list of the DNS zones
+
+```
+$ az network dns zone list --resource-group $RESOURCE_GROUP
+```
+
+7. If the DNS zone for the shard is not present, create it:
+
+```
+$ az network dns zone create --resource-group  $RESOURCE_GROUP --name ${INGRESS_FQDN}
+```
+
+7. Create the `ExternalDNS` resource (replace the `spec.zone` field with the proper zone ID from the previous command)
+
+```
+$ cat << EOF | oc apply -f -
+apiVersion: externaldns.olm.openshift.io/v1alpha1
+kind: ExternalDNS
+metadata:
+  name: shard-wildcard-azure
+spec:
+  zones:
+  - "/subscriptions/XXXX/resourceGroups/YYYY-rg/providers/Microsoft.Network/dnszones/sharded-apps.ocp.example.com"
+  provider:
+    type: Azure
+  domains:
+  - name: azure.opentlc.com
+    filterType: Include
+    matchType: Exact
+  source:
+    type: Service 
+    service:
+      serviceType:
+        - LoadBalancer
+    labelFilter: 
+      matchLabels:
+        external-dns.sharded-widcard/publish: "yes"
+    hostnameAnnotation: "Allow"
+    fqdnTemplate:
+    - '*.sharded-apps.ocp.example.com'
+EOF
+```
+
+8. Apply the label to service in order to create the DNS records:
+
+```
+$ oc label svc -n openshift-ingress router-sharded-custom-oc-router external-dns.sharded-widcard/publish=yes
 ```
