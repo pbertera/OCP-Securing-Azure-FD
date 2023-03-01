@@ -2,9 +2,15 @@ statsUsername: stats
 statsPassword: statsPwd
 tlsCert: "tls.crt"
 tlsKey: "tls.key"
-ingressFQDN: "secured-apps.ocp4-f87sm-ipi.azure.opentlc.com"
-image: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:73d1c5f9417f9a851404baed48d4dd3051ff23e6568033fec1fa6b9c7af3d889
+ingressFQDN: "secured-apps.cluster-pzhsw.gcp.redhatworkshops.io"
+image: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:62625210460e76c1f10a2617170316553379362d6a7ee051c938d5e667c7d6e2
 nodeSelector:
   node-role.kubernetes.io/worker: ""
-  router-sharded: "yes"
+#  router-sharded: "yes"
 routeLabels: type=sharded
+# Only for Azure at the moment
+useInternalLB: gcp
+replicas: 2
+customHAProxyTemplate:
+  useCustomTemplate: true
+  file: haproxy-config.template 

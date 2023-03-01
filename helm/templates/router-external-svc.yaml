@@ -1,6 +1,18 @@
 apiVersion: v1
 kind: Service
 metadata:
+{{- if eq .Values.useInternalLB "azure" }}
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+{{- end }}
+{{- if eq .Values.useInternalLB "aws" }}
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+{{- end }}
+{{- if eq .Values.useInternalLB "gcp" }}
+  annotations:
+     networking.gke.io/load-balancer-type: "Internal" 
+{{- end }}
   labels:
     app: router
     ingresscontroller.operator.openshift.io/owning-ingresscontroller: {{ include "router-shard.fullname" . }}

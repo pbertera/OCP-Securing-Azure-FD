@@ -8,7 +8,7 @@ metadata:
 spec:
   minReadySeconds: 30
   progressDeadlineSeconds: 600
-  replicas: 2
+  replicas: {{ .Values.replicas }}
   revisionHistoryLimit: 10
   selector:
     matchLabels:
@@ -104,6 +104,10 @@ spec:
           value: "1936"
         - name: STATS_USERNAME_FILE
           value: /var/lib/haproxy/conf/metrics-auth/statsUsername
+        {{ if .Values.customHAProxyTemplate.useCustomTemplate -}}
+        - name: TEMPLATE_FILE
+          value: /var/lib/haproxy/conf/custom/{{ .Values.customHAProxyTemplate.file }}
+        {{- end }}
         image: {{ .Values.image }}
         imagePullPolicy: IfNotPresent
         livenessProbe:
@@ -163,6 +167,11 @@ spec:
         - mountPath: /etc/pki/tls/metrics-certs
           name: metrics-certs
           readOnly: true
+        {{ if .Values.customHAProxyTemplate.useCustomTemplate -}}
+        - mountPath: /var/lib/haproxy/conf/custom
+          name: template-volume
+          readOnly: true
+        {{- end }} 
       dnsPolicy: ClusterFirst
       {{- with .Values.nodeSelector }}
       nodeSelector:
@@ -206,3 +215,10 @@ spec:
         secret:
           defaultMode: 420
           secretName: router-metrics-certs-{{ include "router-shard.fullname" . }}
+      {{ if .Values.customHAProxyTemplate.useCustomTemplate -}}
+      - name: template-volume
+        configMap:
+          name: router-template
+          optional: false
+          defaultMode: 420
+      {{-  end }}

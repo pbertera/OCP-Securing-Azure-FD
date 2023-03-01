@@ -183,6 +183,11 @@ The Helm templates are created out of shard from a 4.9.11 OCP cluster, deploying
     - `tlsCert` and `tlsKey` are the certificate and the key used by the router (must match the `ingressFQDN`)
     - `routeLabels` defines the route selector that this shard will use
     - `image` is the router image, you can get it from the default router: `oc get deploy -n openshift-ingress router-default -o jsonpath="{.spec.template.spec.containers[0].image}"`
+    - `useInternalLB` if an Internal Load Balancer should be instantiate or not, accepted values are `aws`, `azure, `gcp`.
+    - `replicas` configure the number of router pods
+    - `customHAProxyTemplate` section for a custom HAProxy template file
+        - `useCustomTemplate` if a custom template should be used (true of false)
+        - `file` the file to use as custom template, you can obtain the default one with `oc rsh -n openshift-ingress deploy/${ROUTER_NAME} cat haproxy-config.template > haproxy-config.template`
 3. Install the chart: `helm install -n openshift-ingress sharded ./helm/`
 4. Verify the pods are running: `oc get pods,svc,deploy -n openshift-ingress`
 
@@ -190,7 +195,7 @@ The helm chart deploys a `LoadBalancer` service to expose the router.
 We need to create a DNS A record for the wildcard application FQDN of the shard pointg to the the external IP of the load balancer (see the next sections for that).
 
 The chart will deploy a router into the `openshift-ingress` namespace which is not handled by the Ingress Operator.
-Is then possible to customize the router following the steps of the [Router customization in order to secure requests coming from an Azure Front Door](#router-customization-in-order-to-secure-requests-coming-from-an-azure-front-door) Section
+If the `customHAProxyTemplate.useCustomTemplate` is not set the deployed router will not use a custom template.
 
 ## Default router customization
 
@@ -233,13 +238,13 @@ oc scale deploy -n openshift-ingress-operator ingress-operator --replicas 0
 
 **ACTION GOAL:** apply the HAProxy template customizations in order to secure Fron Door requests as per Microsoft instructions.
 
-1. Get the pod name:
+1. Get the deployments names:
 
 ```
-oc get pods -n openshift-ingress
+oc get deploy -n openshift-ingress
 ```
 
-Take the appropriate pod name, depending on which router you want to customize: the default or an unmanaged shard.
+Take the appropriate deployment, depending on which router you want to customize: the default or an unmanaged shard.
 
 2. Get the default template:
 
