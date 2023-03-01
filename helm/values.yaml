@@ -8,8 +8,10 @@ nodeSelector:
   node-role.kubernetes.io/worker: ""
 #  router-sharded: "yes"
 routeLabels: type=sharded
-# Only for Azure at the moment
-useInternalLB: gcp
+service:
+  useInternalLB: gcp
+  annotations:
+    app: router
 replicas: 2
 customHAProxyTemplate:
   useCustomTemplate: true
