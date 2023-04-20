@@ -1,3 +1,4 @@
+{{- if eq .Values.useHostNetwork false }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -23,18 +24,31 @@ metadata:
   name: router-{{ include "router-shard.fullname" . }}
   namespace: openshift-ingress
 spec:
-  allocateLoadBalancerNodePorts: true
+{{- if eq .Values.service.type "LoadBalancer" }}
+  allocateLoadBalancerNodePorts: {{ .Values.service.allocateLoadBalancerNodePorts }}
+{{- end  }}
   externalTrafficPolicy: Local
   ports:
   - name: http
     port: 80
     protocol: TCP
     targetPort: http
+    {{- if not .Values.service.allocateLoadBalancerNodePorts }}
+    {{- with .Values.service.httpNodePort }}
+    nodePort: {{ . }}
+    {{- end }}
+    {{- end }}
   - name: https
     port: 443
     protocol: TCP
     targetPort: https
+    {{- if not .Values.service.allocateLoadBalancerNodePorts }}
+    {{- with .Values.service.httpsNodePort }}
+    nodePort: {{ . }}
+    {{- end }}
+    {{- end }}
   selector:
     ingresscontroller.operator.openshift.io/deployment-ingresscontroller: {{ include "router-shard.fullname" . }}
   sessionAffinity: None
-  type: LoadBalancer
+  type: {{ .Values.service.type }}
+{{- end }}

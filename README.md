@@ -184,6 +184,13 @@ The Helm templates are created out of shard from a 4.9.11 OCP cluster, deploying
     - `routeLabels` defines the route selector that this shard will use
     - `image` is the router image, you can get it from the default router: `oc get deploy -n openshift-ingress router-default -o jsonpath="{.spec.template.spec.containers[0].image}"`
     - `useInternalLB` if an Internal Load Balancer should be instantiate or not, accepted values are `aws`, `azure, `gcp`.
+    - `service` section to custimize the  external service used to expose the router
+       - `annotations` annotations to add to the service
+       - `type` the  service type
+       - `allocateLoadBalancerNodePorts` if the service `spec.allocateLoadBalancerNodePorts` sould be set, to be used only with service type `LoadBalancer`
+       - `httpNodePort` and `httpsNodePort` the node ports to set if service type is `NodePort`
+    - `useHostNetwork` if the router pod should be exposed with `hostNetwork`
+    - `httpRouterPort`, `httpsRouterPort` `metricsRouterPort` ports to use on the router pod
     - `replicas` configure the number of router pods
     - `customHAProxyTemplate` section for a custom HAProxy template file
         - `useCustomTemplate` if a custom template should be used (true of false)

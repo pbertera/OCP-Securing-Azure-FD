@@ -2,17 +2,31 @@ statsUsername: stats
 statsPassword: statsPwd
 tlsCert: "tls.crt"
 tlsKey: "tls.key"
-ingressFQDN: "secured-apps.cluster-pzhsw.gcp.redhatworkshops.io"
-image: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:62625210460e76c1f10a2617170316553379362d6a7ee051c938d5e667c7d6e2
+#ingressFQDN: "secured-apps.cluster-pzhsw.gcp.redhatworkshops.io"
+ingressFQDN: "secured-apps.ocp4-5ml7w-ipi.azure.opentlc.com"
+image: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:455f14c36eb6b5d51c515d844053357a53839262c75023a32a2280be97301fe4
 nodeSelector:
   node-role.kubernetes.io/worker: ""
 #  router-sharded: "yes"
 routeLabels: type=sharded
 service:
-  useInternalLB: gcp
+#  useInternalLB: gcp
   annotations:
     app: router
+# with service.type = NodePort, allocateLoadBalancerNodePorts should be set to false
+# httpNodePort  and httpsNodePort are optional to set the node port to be allocated
+  type: LoadBalancer
+# allocateLoadBalancerNodePorts should be set only with service.type = LoadBalancer
+  allocateLoadBalancerNodePorts: true
+  httpNodePort: 30003
+  httpsNodePort: 30004
 replicas: 2
+# If you  want to expose the router with host Networking set  useHostNetwork: to true
+useHostNetwork: false
+# You can then set the ports to be used with httpRouterPort, httpsRouterPort and  metricsRouterPort
+httpRouterPort: 80
+httpsRouterPort: 443
+metricsRouterPort: 1936
 customHAProxyTemplate:
-  useCustomTemplate: true
+  useCustomTemplate: false
   file: haproxy-config.template 

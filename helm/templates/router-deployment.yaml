@@ -101,7 +101,11 @@ spec:
         - name: STATS_PASSWORD_FILE
           value: /var/lib/haproxy/conf/metrics-auth/statsPassword
         - name: STATS_PORT
-          value: "1936"
+          value: "{{ .Values.metricsRouterPort }}"
+        - name: ROUTER_SERVICE_HTTP_PORT
+          value: "{{ .Values.httpRouterPort }}"
+        - name: ROUTER_SERVICE_HTTPS_PORT
+          value: "{{ .Values.httpsRouterPort }}"
         - name: STATS_USERNAME_FILE
           value: /var/lib/haproxy/conf/metrics-auth/statsUsername
         {{ if .Values.customHAProxyTemplate.useCustomTemplate -}}
@@ -114,27 +118,27 @@ spec:
           failureThreshold: 3
           httpGet:
             path: /healthz
-            port: 1936
+            port: {{ .Values.metricsRouterPort }} 
             scheme: HTTP
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 1
         name: router
         ports:
-        - containerPort: 80
+        - containerPort: {{ .Values.httpRouterPort }}
           name: http
           protocol: TCP
-        - containerPort: 443
+        - containerPort: {{ .Values.httpsRouterPort }}
           name: https
           protocol: TCP
-        - containerPort: 1936
+        - containerPort: {{ .Values.metricsRouterPort }}
           name: metrics
           protocol: TCP
         readinessProbe:
           failureThreshold: 3
           httpGet:
             path: /healthz/ready
-            port: 1936
+            port: {{ .Values.metricsRouterPort }} 
             scheme: HTTP
           periodSeconds: 10
           successThreshold: 1
@@ -143,11 +147,13 @@ spec:
           requests:
             cpu: 100m
             memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: true
         startupProbe:
           failureThreshold: 120
           httpGet:
             path: /healthz/ready
-            port: 1936
+            port: {{ .Values.metricsRouterPort }} 
             scheme: HTTP
           periodSeconds: 1
           successThreshold: 1
@@ -172,7 +178,12 @@ spec:
           name: template-volume
           readOnly: true
         {{- end }} 
+      {{- if .Values.useHostNetwork }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      {{- else }}
       dnsPolicy: ClusterFirst
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -180,7 +191,6 @@ spec:
       priorityClassName: system-cluster-critical
       restartPolicy: Always
       schedulerName: default-scheduler
-      securityContext: {}
       serviceAccount: router
       serviceAccountName: router
       terminationGracePeriodSeconds: 3600
